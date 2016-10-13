@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Options;
 
 namespace Depthcharge.Spider
 {
@@ -20,6 +20,11 @@ namespace Depthcharge.Spider
                 .Build();
 
             host.Run();
+
+            
         }
+
+        
+
     }
 }

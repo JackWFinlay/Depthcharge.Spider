@@ -12,7 +12,8 @@ namespace Depthcharge.Spider.Controllers
         // GET api/values
         [HttpGet]
         public IEnumerable<string> Get()
-        {
+        {   
+            Console.WriteLine("Hello");
             return new string[] { "value1", "value2" };
         }
 

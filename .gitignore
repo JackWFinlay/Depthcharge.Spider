@@ -240,3 +240,8 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+/src/Depthcharge.Spider/appsettings.dev.json
+/src/Depthcharge.Spider/appsettings.json
+
+/src/Depthcharge.Spider/Properties/PublishProfiles/DepthchargeSpider.pubxml
+/src/Depthcharge.Spider/appsettings.Development.json
