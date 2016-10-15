@@ -11,34 +11,42 @@ using Microsoft.Extensions.Options;
 namespace Depthcharge.Spider.Controllers
 {
 
-    [Route("api/[controller]")]
+    [Route("api/[controller]/[action]")]
     public class SpiderController : Controller
     {
         
         [HttpGet]
-        public void StartCrawl([FromServices] IOptions<DocumentDBSettings> appSettings)
+        public string Crawl([FromServices] IOptions<DocumentDBSettings> dbSettings, [FromServices] IOptions<ServiceSettings> serviceSettings )
+        {
+            StartCrawl(dbSettings, serviceSettings);
+
+            return "Spider started.";
+        }
+
+        [HttpGet]
+        public string Halt()
+        {
+            Spider.StopCrawl = true;
+            return "Spider halted.";
+        }
+
+        private async void StartCrawl(IOptions<DocumentDBSettings> appSettings, IOptions<ServiceSettings> serviceSettings)
         {
             DocumentDbClient documentDbClient = new DocumentDbClient(appSettings);
-            SetupAsync().Wait();
+            await SetupAsync();
 
             while (!Spider.StopCrawl)
             {
                 try
                 {
-                    Task crawlTask = Task.Run(() => Crawl(appSettings, documentDbClient));
+                    Task crawlTask = Task.Run(() => Crawl(appSettings, serviceSettings, documentDbClient));
                     crawlTask.Wait();
                 }
                 catch (Exception)
                 {
                     break;
                 }
-            } 
-        }
-
-        [HttpPost]
-        public void StopCrawl()
-        {
-            Spider.StopCrawl = true;
+            }
         }
 
         private static async Task SetupAsync()
@@ -46,9 +54,9 @@ namespace Depthcharge.Spider.Controllers
             await DocumentDbClient.SetupAsync();
         }
 
-        private static async Task Crawl(IOptions<DocumentDBSettings> appSettings, DocumentDbClient documentDbClient)
+        private static async Task Crawl(IOptions<DocumentDBSettings> dbSettings, IOptions<ServiceSettings> serviceSettings, DocumentDbClient documentDbClient)
         {
-            Spider spider = new Spider(appSettings);
+            Spider spider = new Spider(dbSettings, serviceSettings);
             await spider.Run(documentDbClient);
         }
     }

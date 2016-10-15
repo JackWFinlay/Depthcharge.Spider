@@ -26,9 +26,9 @@ namespace Depthcharge.Spider
         internal static string QueueCollectionName = "IndexQueue";
         internal static string IndexDocumentCollectionName = "IndexDocuments";
 
-        public DocumentDbClient(IOptions<DocumentDBSettings> appSettings)
+        public DocumentDbClient(IOptions<DocumentDBSettings> dbSettings)
         {
-            DocumentDBSettings documentDbSettings = appSettings.Value;
+            DocumentDBSettings documentDbSettings = dbSettings.Value;
             DocumentClient = new DocumentClient(new Uri(documentDbSettings.DocumentDBConnectionString), documentDbSettings.DocumentDBPrimaryKey);
         }
 
@@ -87,7 +87,7 @@ namespace Depthcharge.Spider
                     await DocumentClient.CreateDocumentCollectionAsync(
                         UriFactory.CreateDatabaseUri(databaseName),
                         collectionInfo,
-                        new RequestOptions { OfferThroughput = 400 });
+                        new RequestOptions {});
                 }
                 else
                 {
@@ -96,24 +96,6 @@ namespace Depthcharge.Spider
             }
         }
 
-        public async Task CreateQueueDocumentIfNotExistsAsync(string databaseName, string collectionName, Queue queue )
-        {
-            try
-            {
-                await DocumentClient.ReadDocumentAsync(UriFactory.CreateDocumentUri(databaseName, collectionName, queue.Id));
-            }
-            catch (DocumentClientException de)
-            {
-                if (de.StatusCode == HttpStatusCode.NotFound)
-                {
-                    await DocumentClient.CreateDocumentAsync(UriFactory.CreateDocumentCollectionUri(databaseName, collectionName), queue);
-                }
-                else
-                {
-                    throw;
-                }
-            }
-        }
 
         public async Task CreateIndexingDocumentAsync(string databaseName, string collectionName, IndexDocument indexDocument)
         { 

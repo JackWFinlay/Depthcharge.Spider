@@ -12,22 +12,30 @@ namespace Depthcharge.Spider
         private DocumentDbClient _documentDbClient;
         public static bool StopCrawl = false;
 
-        public Spider(IOptions<DocumentDBSettings> appSettings)
+
+        public Spider(IOptions<DocumentDBSettings> dbSettings, IOptions<ServiceSettings> serviceSettings)
         {
-            _documentDbClient = new DocumentDbClient(appSettings);
+            _documentDbClient = new DocumentDbClient(dbSettings);
+
         }
 
         public async Task Run(DocumentDbClient documentDbClient)
         {
             _documentDbClient = documentDbClient;
-            string url = NextUrlToIndex();
+            string url = await NextUrlToIndex();
 
             if (url == null)
             {
                 return;
             }
 
-            string html = await GetHtmlStringForUrlAsync(new Uri(url));
+            string html = await GetContentForUrlAsync(new Uri(url));
+
+            if (html == null)
+            {
+                return;
+            }
+
             JsonizeNode jsonizeNode = JsonizeHtml(html);
             IndexDocument indexDocument = new IndexDocument(jsonizeNode, url);
 
@@ -36,6 +44,8 @@ namespace Depthcharge.Spider
                                                                     indexDocument);
 
             Task updateQueueTask = UpdateQueue(url);
+
+            Task.WaitAll(indexTask, updateQueueTask);
         }
 
 
@@ -45,23 +55,28 @@ namespace Depthcharge.Spider
             return jsonize.ParseHtmlAsJsonizeNode();
         }
 
-        private static async Task<string> GetHtmlStringForUrlAsync(Uri url)
+        private static async Task<string> GetContentForUrlAsync(Uri url)
         {
-            using (var client = new HttpClient())
+            HttpResponseMessage response;
+            try
             {
-                var response = await client.GetAsync(url);
-                return await response.Content.ReadAsStringAsync();
+                using (var client = new HttpClient())
+                {
+                    response = await client.GetAsync(url);
+                }
             }
+            catch (Exception)
+            {
+                return null;
+            }
+            return await response.Content.ReadAsStringAsync();
+
         }
 
-        private static string NextUrlToIndex()
+        private static async Task<string> NextUrlToIndex()
         {
-            //Document queue = DocumentClient.CreateDocumentQuery<Document>(IndexQueueCollectionLink)
-            //                .OrderByDescending(x => x)
-            //                .SingleOrDefault();
-
-            //return queue?.GetPropertyValue<List<QueueItem>>("QueueItems").OrderByDescending(x => x.Priority).FirstOrDefault()?.Url;
-            return @"http://jackfinlay.com";
+            
+            return await GetContentForUrlAsync(new Uri("http://localhost:5001/Queue"));
         }
 
         private async Task UpdateQueue(string url)
