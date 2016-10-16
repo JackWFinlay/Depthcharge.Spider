@@ -21,15 +21,13 @@ namespace Depthcharge.Spider
 
         internal static string DbName = "Depthcharge";
         internal static DocumentClient DocumentClient;
-        internal static Uri IndexQueueCollectionLink;
-        internal static Uri IndexDocumentcollectionLink;
-        internal static string QueueCollectionName = "IndexQueue";
         internal static string IndexDocumentCollectionName = "IndexDocuments";
 
         public DocumentDbClient(IOptions<DocumentDBSettings> dbSettings)
         {
             DocumentDBSettings documentDbSettings = dbSettings.Value;
             DocumentClient = new DocumentClient(new Uri(documentDbSettings.DocumentDBConnectionString), documentDbSettings.DocumentDBPrimaryKey);
+            SetupAsync().Wait();
         }
 
        
@@ -37,10 +35,7 @@ namespace Depthcharge.Spider
         public static async Task SetupAsync()
         {
             await CreateDatabaseIfNotExistsAsync(DbName);
-            //await CreateDocumentCollectionIfNotExistsAsync(DbName, QueueCollectionName);
             await CreateDocumentCollectionIfNotExistsAsync(DbName, IndexDocumentCollectionName);
-            //IndexQueueCollectionLink = UriFactory.CreateDocumentCollectionUri(DbName, QueueCollectionName);
-            IndexDocumentcollectionLink = UriFactory.CreateDocumentCollectionUri(DbName, IndexDocumentCollectionName);
         }
 
         private static async Task CreateDatabaseIfNotExistsAsync(string databaseName)

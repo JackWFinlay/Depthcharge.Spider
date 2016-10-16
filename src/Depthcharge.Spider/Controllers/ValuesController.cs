@@ -13,7 +13,6 @@ namespace Depthcharge.Spider.Controllers
         [HttpGet]
         public IEnumerable<string> Get()
         {   
-            Console.WriteLine("Hello");
             return new string[] { "value1", "value2" };
         }
 

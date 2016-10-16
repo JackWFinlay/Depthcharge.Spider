@@ -14,12 +14,28 @@ namespace Depthcharge.Spider.Controllers
     [Route("api/[controller]/[action]")]
     public class SpiderController : Controller
     {
-        
-        [HttpGet]
-        public string Crawl([FromServices] IOptions<DocumentDBSettings> dbSettings, [FromServices] IOptions<ServiceSettings> serviceSettings )
-        {
-            StartCrawl(dbSettings, serviceSettings);
 
+        private static IOptions<ServiceSettings> _serviceSettings;
+        private static IOptions<DocumentDBSettings> _dbSettings;
+        private static int _threadCount = 0;
+
+        public SpiderController([FromServices] IOptions<DocumentDBSettings> dbSettings, [FromServices] IOptions<ServiceSettings> serviceSettings)
+        {
+            if (_serviceSettings == null)
+            {
+                _serviceSettings = serviceSettings;
+            }
+
+            if (_dbSettings == null)
+            {
+                _dbSettings = dbSettings;
+            }
+        }
+
+        [HttpGet]
+        public string Crawl( )
+        {
+            StartCrawl();
             return "Spider started.";
         }
 
@@ -30,34 +46,45 @@ namespace Depthcharge.Spider.Controllers
             return "Spider halted.";
         }
 
-        private async void StartCrawl(IOptions<DocumentDBSettings> appSettings, IOptions<ServiceSettings> serviceSettings)
+        private static void StartCrawl()
         {
-            DocumentDbClient documentDbClient = new DocumentDbClient(appSettings);
-            await SetupAsync();
+            //Parallel.For(0, 1000, new ParallelOptions { MaxDegreeOfParallelism = 4 }, async i =>
+            //{
+            //    await DoCrawl();
+            //});
 
-            while (!Spider.StopCrawl)
+            ParallelWhile(new ParallelOptions { MaxDegreeOfParallelism = 4 }, GetStopCrawlStatus);
+        }
+
+        private static async Task DoCrawl()
+        {
+
+            try
             {
-                try
-                {
-                    Task crawlTask = Task.Run(() => Crawl(appSettings, serviceSettings, documentDbClient));
-                    crawlTask.Wait();
-                }
-                catch (Exception)
-                {
-                    break;
-                }
+                Spider spider = new Spider(_dbSettings, _serviceSettings);
+                await spider.Run();
+            }
+            catch (Exception e)
+            {
+               Console.WriteLine(e.Message);
             }
         }
 
-        private static async Task SetupAsync()
+        private static bool GetStopCrawlStatus()
         {
-            await DocumentDbClient.SetupAsync();
+            return !Spider.StopCrawl;
         }
 
-        private static async Task Crawl(IOptions<DocumentDBSettings> dbSettings, IOptions<ServiceSettings> serviceSettings, DocumentDbClient documentDbClient)
+
+        public static void ParallelWhile(ParallelOptions parallelOptions, Func<bool> condition)
         {
-            Spider spider = new Spider(dbSettings, serviceSettings);
-            await spider.Run(documentDbClient);
+            Parallel.ForEach(IterateUntilFalse(condition), parallelOptions,
+                 ignored => DoCrawl().Wait());
+        }
+
+        private static IEnumerable<bool> IterateUntilFalse(Func<bool> condition)
+        {
+            while (condition()) yield return true;
         }
     }
 }

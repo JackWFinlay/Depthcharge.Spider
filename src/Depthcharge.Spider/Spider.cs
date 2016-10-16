@@ -1,34 +1,48 @@
 ﻿using JackWFinlay.Jsonize;
 using System;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Runtime.InteropServices;
+using System.Security.Policy;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 
 namespace Depthcharge.Spider
 {
     public class Spider
     {
-        private DocumentDbClient _documentDbClient;
+        private static DocumentDbClient _documentDbClient;
+        private static ServiceSettings _serviceSettings;
         public static bool StopCrawl = false;
 
-
-        public Spider(IOptions<DocumentDBSettings> dbSettings, IOptions<ServiceSettings> serviceSettings)
+        public Spider([FromServices]IOptions<DocumentDBSettings> dbSettings, IOptions<ServiceSettings> serviceSettings)
         {
-            _documentDbClient = new DocumentDbClient(dbSettings);
+            if (_documentDbClient == null)
+            { 
+                _documentDbClient = new DocumentDbClient(dbSettings);
+            }
 
+            if (_serviceSettings == null)
+            {
+                _serviceSettings = serviceSettings.Value;
+            }
         }
 
-        public async Task Run(DocumentDbClient documentDbClient)
+        public async Task Run()
         {
-            _documentDbClient = documentDbClient;
-            string url = await NextUrlToIndex();
+            QueueItem queueItem = await NextUrlToIndex();
 
-            if (url == null)
+            if (queueItem == null)
             {
                 return;
             }
 
+            string url = $"{queueItem.Protocol}://{queueItem.Url}";
             string html = await GetContentForUrlAsync(new Uri(url));
 
             if (html == null)
@@ -43,7 +57,7 @@ namespace Depthcharge.Spider
                                                                     DocumentDbClient.IndexDocumentCollectionName, 
                                                                     indexDocument);
 
-            Task updateQueueTask = UpdateQueue(url);
+            Task updateQueueTask = UpdateQueue(queueItem);
 
             Task.WaitAll(indexTask, updateQueueTask);
         }
@@ -65,38 +79,44 @@ namespace Depthcharge.Spider
                     response = await client.GetAsync(url);
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                Console.WriteLine(e.Message);
                 return null;
+                
             }
             return await response.Content.ReadAsStringAsync();
 
         }
 
-        private static async Task<string> NextUrlToIndex()
+        private static async Task<QueueItem> NextUrlToIndex()
         {
-            
-            return await GetContentForUrlAsync(new Uri("http://localhost:5001/Queue"));
+            string json = await GetContentForUrlAsync(new Uri(_serviceSettings.QueueManagerUrl));
+
+            return json != null ? JsonConvert.DeserializeObject<QueueItem>(json) : null;
         }
 
-        private async Task UpdateQueue(string url)
+        private static async Task UpdateQueue(QueueItem queueItem)
         {
-            //Document doc = DocumentClient.CreateDocumentQuery<Document>(IndexQueueCollectionLink)
-            //                .AsEnumerable()
-            //                .SingleOrDefault();
+            string json = "";
+            if (queueItem != null)
+            {
+                json = JsonConvert.SerializeObject(queueItem);
+            }
 
-            ////Update some properties on the found resource
-            //doc?.SetPropertyValue(url, (doc.GetPropertyValue<int>("Priority") + 1));
+            StringContent content = new StringContent(json, Encoding.UTF8, "application/json");
+            var method = new HttpMethod("PATCH");
+            var request = new HttpRequestMessage(method, _serviceSettings.QueueManagerUrl)
+            {
+                Content = content
+            };
 
-            //if (doc?.GetPropertyValue<string>("Url") == null)
-            //{
-            //    doc.
-            //}
+            HttpResponseMessage response = new HttpResponseMessage();
 
-
-            ////Now persist these changes to the database by replacing the original resource
-            //await DocumentClient.ReplaceDocumentAsync(doc);
-            Console.WriteLine("Updating Queue");
+            using (var client = new HttpClient())
+            {
+                response = await client.SendAsync(request);
+            }
         }
     }
 }
