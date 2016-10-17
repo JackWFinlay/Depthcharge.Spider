@@ -22,5 +22,30 @@ namespace Depthcharge.Spider
 
         [JsonProperty(PropertyName = "indexed")]
         public bool Indexed { get; set; }
+
+        public QueueItem(string url)
+        {
+            string[] split;
+            if (url.StartsWith("http://"))
+            {
+                split = url.Split(new string[] { "http://" }, StringSplitOptions.None);
+                Protocol = "http";
+                Url = split[1];
+            }
+            else if (url.StartsWith("https://"))
+            {
+                split = url.Split(new string[] {"https://"}, StringSplitOptions.None);
+                Protocol = "https";
+                Url = split[1];
+            }
+            else
+            {
+                Url = url;
+                Protocol = "http";
+            }
+
+            Priority = 1;
+            Indexed = false;
+        }
     }
 }

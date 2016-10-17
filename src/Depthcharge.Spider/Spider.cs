@@ -1,5 +1,6 @@
 ﻿using JackWFinlay.Jsonize;
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.InteropServices;
@@ -57,10 +58,62 @@ namespace Depthcharge.Spider
                                                                     DocumentDbClient.IndexDocumentCollectionName, 
                                                                     indexDocument);
 
-            Task updateQueueTask = UpdateQueue(queueItem);
+            List<QueueItem> linksList = GetQueueItemsFromIndexDocument(indexDocument);
 
-            Task.WaitAll(indexTask, updateQueueTask);
+            UpdateQueue(queueItem).Wait();
+            Task postToQueueTask = PostToQueue(linksList);
+            
+
+            Task.WaitAll(indexTask, postToQueueTask);
+
         }
+
+        private static async Task PostToQueue(List<QueueItem> linksList)
+        {
+            foreach (QueueItem queueItem in linksList)
+            {
+                string json = "";
+                if (queueItem != null)
+                {
+                    json = JsonConvert.SerializeObject(queueItem);
+                }
+
+                StringContent content = new StringContent(json, Encoding.UTF8, "application/json");
+                var method = new HttpMethod("POST");
+                var request = new HttpRequestMessage(method, _serviceSettings.QueueManagerUrl)
+                {
+                    Content = content
+                };
+
+                using (HttpClient client = new HttpClient())
+                {
+                    await client.SendAsync(request);
+                }
+            }
+        }
+
+        private static List<QueueItem> GetQueueItemsFromIndexDocument(IndexDocument indexDocument)
+        {
+            List<QueueItem> linksList = new List<QueueItem>();
+            GetQueueItemsFromJsonizeNode(indexDocument.DocumentJsonizeNode, linksList);
+            return linksList;
+        }
+
+        private static void GetQueueItemsFromJsonizeNode(JsonizeNode parentNode, List<QueueItem> linksList)
+        {
+
+            foreach (JsonizeNode childNode in parentNode.Children)
+            {
+                if (childNode.Tag.Equals("a"))
+                {
+                    IDictionary<string, object> attributesDictionary = childNode.Attributes;
+                    linksList.Add(new QueueItem(attributesDictionary["href"].ToString()));
+                }
+                
+                GetQueueItemsFromJsonizeNode(childNode, linksList);
+            }
+        }
+
 
 
         private static JsonizeNode JsonizeHtml(string htmlString)
