@@ -40,6 +40,7 @@ namespace Depthcharge.Spider
 
             if (queueItem == null)
             {
+                Console.WriteLine("No items in queue.");
                 return;
             }
 
@@ -70,12 +71,11 @@ namespace Depthcharge.Spider
 
         private static async Task PostToQueue(List<QueueItem> linksList)
         {
-            foreach (QueueItem queueItem in linksList)
-            {
+            
                 string json = "";
-                if (queueItem != null)
+                if (linksList != null)
                 {
-                    json = JsonConvert.SerializeObject(queueItem);
+                    json = JsonConvert.SerializeObject(linksList);
                 }
 
                 StringContent content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -89,7 +89,6 @@ namespace Depthcharge.Spider
                 {
                     await client.SendAsync(request);
                 }
-            }
         }
 
         private static List<QueueItem> GetQueueItemsFromIndexDocument(IndexDocument indexDocument)
@@ -101,20 +100,25 @@ namespace Depthcharge.Spider
 
         private static void GetQueueItemsFromJsonizeNode(JsonizeNode parentNode, List<QueueItem> linksList)
         {
-
-            foreach (JsonizeNode childNode in parentNode.Children)
+            if (parentNode.Children != null)
             {
-                if (childNode.Tag.Equals("a"))
+                foreach (JsonizeNode childNode in parentNode.Children)
                 {
-                    IDictionary<string, object> attributesDictionary = childNode.Attributes;
-                    linksList.Add(new QueueItem(attributesDictionary["href"].ToString()));
+                    if (childNode.Tag != null && childNode.Tag.Equals("a"))
+                    {
+                        IDictionary<string, object> attributesDictionary = childNode.Attributes;
+                        if (!attributesDictionary["href"].ToString().Contains("#") && 
+                            !attributesDictionary["href"].ToString().ToLower().Contains("mailto:") &&
+                            attributesDictionary["href"].ToString().ToLower().StartsWith("http"))
+                        {
+                            linksList.Add(new QueueItem(attributesDictionary["href"].ToString()));
+                        }
+                    }
+
+                    GetQueueItemsFromJsonizeNode(childNode, linksList);
                 }
-                
-                GetQueueItemsFromJsonizeNode(childNode, linksList);
             }
         }
-
-
 
         private static JsonizeNode JsonizeHtml(string htmlString)
         {

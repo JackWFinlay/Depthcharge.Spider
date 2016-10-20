@@ -17,7 +17,8 @@ namespace Depthcharge.Spider.Controllers
 
         private static IOptions<ServiceSettings> _serviceSettings;
         private static IOptions<DocumentDBSettings> _dbSettings;
-        private static int _threadCount = 0;
+        private const int ThreadCount = 8;
+        private static bool _spiderStarted = false;
 
         public SpiderController([FromServices] IOptions<DocumentDBSettings> dbSettings, [FromServices] IOptions<ServiceSettings> serviceSettings)
         {
@@ -33,16 +34,28 @@ namespace Depthcharge.Spider.Controllers
         }
 
         [HttpGet]
-        public string Crawl( )
+        public string Crawl()
         {
-            StartCrawl();
-            return "Spider started.";
+            string message = "";
+            if (!_spiderStarted)
+            {
+                StartCrawl();
+                _spiderStarted = true;
+                message = "Spider started.";
+            }
+            else
+            {
+                message = "Spider already started.";
+            }
+
+            return message;
         }
 
         [HttpGet]
         public string Halt()
         {
             Spider.StopCrawl = true;
+            _spiderStarted = false;
             return "Spider halted.";
         }
 
@@ -52,8 +65,9 @@ namespace Depthcharge.Spider.Controllers
             //{
             //    await DoCrawl();
             //});
-
-            ParallelWhile(new ParallelOptions { MaxDegreeOfParallelism = 4 }, GetStopCrawlStatus);
+            Spider.StopCrawl = false;
+            ParallelWhile(new ParallelOptions { MaxDegreeOfParallelism = ThreadCount }, GetStopCrawlStatus);
+            //ParallelWhile(new ParallelOptions(), GetStopCrawlStatus);
         }
 
         private static async Task DoCrawl()
