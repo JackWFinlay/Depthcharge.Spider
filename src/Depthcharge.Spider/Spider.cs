@@ -17,21 +17,16 @@ namespace Depthcharge.Spider
 {
     public class Spider
     {
-        private static DocumentDbClient _documentDbClient;
-        private static ServiceSettings _serviceSettings;
+        private static IDocumentDbClient _documentDbClient;
+        private static IServiceSettings _serviceSettings;
+        private static IDocumentDbSettings _documentDbSettings;
         public static bool StopCrawl = false;
 
-        public Spider([FromServices]IOptions<DocumentDBSettings> dbSettings, IOptions<ServiceSettings> serviceSettings)
+        public Spider(IDocumentDbClient documentDbClient, IDocumentDbSettings documentDbSettings, IServiceSettings serviceSettings )
         {
-            if (_documentDbClient == null)
-            { 
-                _documentDbClient = new DocumentDbClient(dbSettings);
-            }
-
-            if (_serviceSettings == null)
-            {
-                _serviceSettings = serviceSettings.Value;
-            }
+            _documentDbClient = documentDbClient;
+            _documentDbSettings = documentDbSettings;
+            _serviceSettings = serviceSettings;
         }
 
         public async Task Run()
@@ -55,8 +50,8 @@ namespace Depthcharge.Spider
             JsonizeNode jsonizeNode = JsonizeHtml(html);
             IndexDocument indexDocument = new IndexDocument(jsonizeNode, url);
 
-            Task indexTask = _documentDbClient.CreateIndexingDocumentAsync(DocumentDbClient.DbName, 
-                                                                    DocumentDbClient.IndexDocumentCollectionName, 
+            Task indexTask = _documentDbClient.CreateIndexingDocumentAsync(_documentDbSettings.DbName, 
+                                                                    _documentDbSettings.CollectionName, 
                                                                     indexDocument);
 
             List<QueueItem> linksList = GetQueueItemsFromIndexDocument(indexDocument);
@@ -107,8 +102,7 @@ namespace Depthcharge.Spider
                     if (childNode.Tag != null && childNode.Tag.Equals("a"))
                     {
                         IDictionary<string, object> attributesDictionary = childNode.Attributes;
-                        if (!attributesDictionary["href"].ToString().Contains("#") && 
-                            !attributesDictionary["href"].ToString().ToLower().Contains("mailto:") &&
+                        if (!attributesDictionary["href"].ToString().ToLower().Contains("mailto:") &&
                             attributesDictionary["href"].ToString().ToLower().StartsWith("http"))
                         {
                             linksList.Add(new QueueItem(attributesDictionary["href"].ToString()));
@@ -168,11 +162,9 @@ namespace Depthcharge.Spider
                 Content = content
             };
 
-            HttpResponseMessage response = new HttpResponseMessage();
-
             using (var client = new HttpClient())
             {
-                response = await client.SendAsync(request);
+                await client.SendAsync(request);
             }
         }
     }

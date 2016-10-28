@@ -5,9 +5,11 @@ using System.Threading.Tasks;
 
 namespace Depthcharge.Spider
 {
-    public class DocumentDBSettings
+    public class DocumentDbSettings : IDocumentDbSettings
     {
-        public string DocumentDBConnectionString { get; set; }
-        public string DocumentDBPrimaryKey { get; set; }
+        public string DocumentDbConnectionString { get; set; }
+        public string DocumentDbPrimaryKey { get; set; }
+        public string DbName { get; set; }
+        public string CollectionName { get; set; }
     }
 }

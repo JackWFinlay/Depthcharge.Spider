@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 
 namespace Depthcharge.Spider
 {
-    public class ServiceSettings : IServiceSettings
+    public interface IServiceSettings
     {
-        public string QueueManagerUrl { get; set; }
+        string QueueManagerUrl { get; set; }
     }
 }

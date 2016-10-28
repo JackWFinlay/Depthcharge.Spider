@@ -12,35 +12,31 @@ using Microsoft.Extensions.Options;
 
 namespace Depthcharge.Spider
 {
-    public class DocumentDbClient
+    public class DocumentDbClient : IDocumentDbClient
     {
         //private static readonly string EndpointUri = Configuration.GetValue<string>("documentDBConnectionString") ?? Environment.GetEnvironmentVariable("APPSETTING_documentDBconnectionString");
 
         //private static readonly string PrimaryKey =
         // ConfigurationManager.AppSettings["documentDBPrimaryKey"] ?? Environment.GetEnvironmentVariable("APPSETTING_documentDBPrimaryKey");
 
-        internal static string DbName = "Depthcharge";
         internal static DocumentClient DocumentClient;
-        internal static string IndexDocumentCollectionName = "IndexDocuments";
-        internal static bool SetUpComplete = false;
 
-        public DocumentDbClient(IOptions<DocumentDBSettings> dbSettings)
-        {
-            DocumentDBSettings documentDbSettings = dbSettings.Value;
-            DocumentClient = new DocumentClient(new Uri(documentDbSettings.DocumentDBConnectionString), documentDbSettings.DocumentDBPrimaryKey);
-            if (!SetUpComplete)
-            {
-                SetupAsync().Wait();
-            }
+        public DocumentDbClient()
+        {  
         }
 
-       
-
-        public static async Task SetupAsync()
+        public static async Task<DocumentDbClient> CreateAsync(DocumentDbSettings dbSettings)
         {
-            await CreateDatabaseIfNotExistsAsync(DbName);
-            await CreateDocumentCollectionIfNotExistsAsync(DbName, IndexDocumentCollectionName);
-            SetUpComplete = true;
+            DocumentDbClient documentDbClient = new DocumentDbClient();
+            return await documentDbClient.InitializeAsync(dbSettings);
+        }
+
+        private async Task<DocumentDbClient> InitializeAsync(IDocumentDbSettings dbSettings)
+        {
+            DocumentClient = new DocumentClient(new Uri(dbSettings.DocumentDbConnectionString), dbSettings.DocumentDbPrimaryKey);
+            await CreateDatabaseIfNotExistsAsync(dbSettings.DbName);
+            await CreateDocumentCollectionIfNotExistsAsync(dbSettings.DbName, dbSettings.CollectionName);
+            return this;
         }
 
         private static async Task CreateDatabaseIfNotExistsAsync(string databaseName)

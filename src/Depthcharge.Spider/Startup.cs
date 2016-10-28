@@ -35,8 +35,16 @@ namespace Depthcharge.Spider
 
             services.AddMvc();
 
-            services.Configure<DocumentDBSettings>(Configuration.GetSection("DocumentDBSettings"));
             services.Configure<ServiceSettings>(Configuration.GetSection("ServiceSettings"));
+            DocumentDbSettings dbSettings = new DocumentDbSettings();
+            Configuration.GetSection("DocumentDBSettings").Bind(dbSettings);
+
+            ServiceSettings serviceSettings = new ServiceSettings();
+            Configuration.GetSection("ServiceSettings").Bind(serviceSettings);
+
+            services.AddSingleton<IDocumentDbSettings>(dbSettings);
+            services.AddSingleton<IServiceSettings>(serviceSettings);
+            services.AddSingleton<IDocumentDbClient>(DocumentDbClient.CreateAsync(dbSettings).Result);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline

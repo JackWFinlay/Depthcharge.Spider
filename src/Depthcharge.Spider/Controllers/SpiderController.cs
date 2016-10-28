@@ -14,23 +14,18 @@ namespace Depthcharge.Spider.Controllers
     [Route("api/[controller]/[action]")]
     public class SpiderController : Controller
     {
+        private readonly IDocumentDbClient _documentDbClient;
+        private readonly IDocumentDbSettings _dbSettings;
+        private readonly IServiceSettings _serviceSettings;
 
-        private static IOptions<ServiceSettings> _serviceSettings;
-        private static IOptions<DocumentDBSettings> _dbSettings;
         private const int ThreadCount = 8;
         private static bool _spiderStarted = false;
 
-        public SpiderController([FromServices] IOptions<DocumentDBSettings> dbSettings, [FromServices] IOptions<ServiceSettings> serviceSettings)
+        public SpiderController(IDocumentDbClient documentDbClient, IDocumentDbSettings dbSettings, IServiceSettings serviceSettings)
         {
-            if (_serviceSettings == null)
-            {
-                _serviceSettings = serviceSettings;
-            }
-
-            if (_dbSettings == null)
-            {
-                _dbSettings = dbSettings;
-            }
+            _documentDbClient = documentDbClient;
+            _dbSettings = dbSettings;
+            _serviceSettings = serviceSettings;
         }
 
         [HttpGet]
@@ -59,7 +54,7 @@ namespace Depthcharge.Spider.Controllers
             return "Spider halted.";
         }
 
-        private static void StartCrawl()
+        private void StartCrawl()
         {
             //Parallel.For(0, 1000, new ParallelOptions { MaxDegreeOfParallelism = 4 }, async i =>
             //{
@@ -70,12 +65,12 @@ namespace Depthcharge.Spider.Controllers
             //ParallelWhile(new ParallelOptions(), GetStopCrawlStatus);
         }
 
-        private static async Task DoCrawl()
+        private async Task DoCrawl()
         {
 
             try
             {
-                Spider spider = new Spider(_dbSettings, _serviceSettings);
+                Spider spider = new Spider(_documentDbClient, _dbSettings, _serviceSettings);
                 await spider.Run();
             }
             catch (Exception e)
@@ -90,7 +85,7 @@ namespace Depthcharge.Spider.Controllers
         }
 
 
-        public static void ParallelWhile(ParallelOptions parallelOptions, Func<bool> condition)
+        private void ParallelWhile(ParallelOptions parallelOptions, Func<bool> condition)
         {
             Parallel.ForEach(IterateUntilFalse(condition), parallelOptions,
                  ignored => DoCrawl().Wait());
